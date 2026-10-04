@@ -2,70 +2,81 @@
 
 ## Summary
 
-This repository documents my Black-Box Optimisation (BBO) capstone project for the Imperial College London / Emeritus Artificial Intelligence and Machine Learning professional certificate. The challenge: find the input values that maximise eight hidden mathematical functions, using only a handful of real evaluations per round and no knowledge of the functions' internal formulas. Each round, a surrogate model is fitted to all data collected so far, and an acquisition function selects the single most promising next point to test. This repository tracks that strategy, round by round, across all eight functions, and documents the reasoning, trade-offs, and results along the way.
+This project is the capstone for the Imperial College London / Emeritus Professional Certificate in Machine Learning and Artificial Intelligence. The challenge is to find the inputs that give the highest output for eight hidden functions, without knowing their formulas and with only one test per function each round. This is like tuning an expensive experiment, such as a drug formulation or a factory process, where every test costs time and money. Each round, a statistical model learns from all results so far and suggests the most promising next test, balancing safe improvements against trying unexplored options. This repository records that process, its results and its limitations.
 
-## Project Structure
+## Repository Structure
 
 ```
 IC-ML-AI-Capstone/
-├── README.md                      <- you are here
+├── README.md
+├── requirements.txt
 ├── Data/
 │   ├── function_1/ ... function_8/
-│   │   ├── initial_inputs.npy     <- starting data provided for the challenge
-│   │   └── initial_outputs.npy
+│   │   ├── initial_inputs.npy       official starter inputs
+│   │   └── initial_outputs.npy      official starter outputs
+│   └── submissions.json             my queries + real portal outputs, by round
 ├── Code/
-│   ├── week1_bbo.ipynb            <- one notebook per round, documenting that
-│   ├── week2_bbo.ipynb               round's surrogate model, acquisition
-│   ├── ...                           strategy, and reasoning
-├── Documentation/
-│   ├── Datasheet.md               <- data motivation, composition, collection,
-│   │                                  preprocessing, distribution and maintenance
-│   ├── Model_Card.md              <- approach, performance, assumptions,
-│   │                                  limitations, trade-offs, ethics
+│   ├── bbo_core.py                  data loading, GP surrogate, acquisition, formatting
+│   ├── run_round.py                 produces one query per function for a round
+│   ├── plot_progress.py             best-so-far plot for all eight functions
+│   └── BBO_round_walkthrough.ipynb  step-by-step notebook version of a round
+├── Results/
+│   ├── round_NN_queries.json        query, settings, seed and diagnostics per round
+│   └── progress.png                 progress plot
+└── Documentation/
+    ├── Datasheet.md
+    └── Model_Card.md
 ```
-
-> **Note on data:** The `.npy` files above are small starter files provided for this challenge. No large or sensitive datasets are stored in this repository.
-
-## The Problem
-
-Each of the 8 functions:
-- Takes a different number of inputs (2D to 8D)
-- Returns a single output value
-- Is framed as a **maximisation** problem (even where the real-world analogy sounds like something you'd minimise, the function has already been transformed so that higher is always better)
-- Is evaluated through a private portal — one query per function, per round, with results returned at the end of each module
-
-The goal is to find the best input combination for each function within a limited query budget, applying Bayesian Optimisation: fit a surrogate model to observed data, use an acquisition function (e.g. Expected Improvement or Upper Confidence Bound) to balance exploiting known good regions against exploring uncertain ones, submit the chosen query, and repeat.
 
 ## Documentation
 
-- **[Datasheet](Documentation/Datasheet.md)** — what the data is, how it was collected, what transformations were applied, and its known limitations.
-- **[Model Card](Documentation/Model_Card.md)** — the modelling approach for each function, performance metrics used, assumptions, limitations, and trade-offs made along the way.
+- **[Datasheet](Documentation/Datasheet.md)**: what the data is, how it was collected, transformations, intended uses and limitations.
+- **[Model Card](Documentation/Model_Card.md)**: how the optimiser works, settings per function and why, performance metrics, assumptions, limitations and ethics.
 
-## Approach at a Glance
+## The Problem
 
-| Function | Dimensions | Surrogate model | Notes |
-|---|---|---|---|
-| 1 | 2D | *(to add)* | |
-| 2 | 2D | *(to add)* | |
-| 3 | 3D | *(to add)* | |
-| 4 | 4D | *(to add)* | |
-| 5 | 4D | *(to add)* | |
-| 6 | 5D | *(to add)* | |
-| 7 | 6D | *(to add)* | |
-| 8 | 8D | *(to add)* | |
+- Eight functions with 2 to 8 inputs each, every input between 0 and 1
+- Each returns one number, and every function is treated as **maximisation**
+- One query per function per round, submitted through the capstone portal as `x1-x2-...-xn` (six decimals, hyphens, no spaces)
 
-*(This table will be filled in and updated as the strategy for each function develops across rounds — see the Model Card for full detail once available.)*
+## Approach
 
-## Results So Far
+Bayesian optimisation with a Gaussian Process surrogate for each function. The GP predicts both a value and its uncertainty, and an acquisition function (Upper Confidence Bound or Expected Improvement) picks the next query by balancing the two. Settings are tuned per function from the official descriptions and the observed data. See the [Model Card](Documentation/Model_Card.md) for the full table.
 
-*(Best output found per function will be summarised here as rounds progress — see individual week notebooks in `/Code` and the Model Card's Performance section for details.)*
+**Why Bayesian optimisation?** Evaluations are expensive and limited, the functions may be noisy and have several peaks, and Bayesian optimisation is designed to make the most of every evaluation by using uncertainty to decide where to look next.
 
-## How to Reproduce
+## How to Run a Round
 
-1. Clone this repository.
-2. Each `Code/weekN_bbo.ipynb` notebook can be run independently; it loads the accumulated data from `/Data`, fits that round's surrogate model(s), and outputs the next query for each function.
-3. Required libraries: `numpy`, `scikit-learn`, and (for functions using a neural network surrogate) `torch`. See each notebook's imports for the exact set used that round.
+```bash
+pip install -r requirements.txt
 
-## Status
+# 1. Log last round's real portal results in Data/submissions.json, e.g.
+#    "function_1": [{"round": 1, "x": [0.214116, 0.834905], "y": 0.123}]
 
-This repository is actively updated as the capstone progresses through its query-submission rounds. Check the Model Card's version note and the most recent `Code/weekN_bbo.ipynb` file for the current state of the project.
+# 2. Generate this round's queries (add --loo for leave-one-out diagnostics)
+python Code/run_round.py --round 2 --loo
+
+# 3. Update the progress plot
+python Code/plot_progress.py
+```
+
+Or open `Code/BBO_round_walkthrough.ipynb` from inside the `Code/` folder and run all cells.
+
+## Results
+
+![Progress](Results/progress.png)
+
+| Function | Best output so far | Round |
+|---|---|---|
+| 1 | *(update after each round)* | |
+| 2 | | |
+| 3 | | |
+| 4 | | |
+| 5 | | |
+| 6 | | |
+| 7 | | |
+| 8 | | |
+
+## Challenges and Insights
+
+*(Add as the project progresses, e.g. which functions were hardest, which settings changed and why, what surprised you.)*
