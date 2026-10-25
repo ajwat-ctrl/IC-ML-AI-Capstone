@@ -1,82 +1,75 @@
-# IC-ML-AI-Capstone: Black-Box Optimisation Challenge
+# IC-ML-AI-Capstone: Black-Box Optimisation (BBO)
 
-## Summary
+Imperial College ML & AI capstone. The task: maximise eight unknown black-box
+functions (2D to 8D, inputs in [0, 1)) using one query per function per round.
 
-This project is the capstone for the Imperial College London / Emeritus Professional Certificate in Machine Learning and Artificial Intelligence. The challenge is to find the inputs that give the highest output for eight hidden functions, without knowing their formulas and with only one test per function each round. This is like tuning an expensive experiment, such as a drug formulation or a factory process, where every test costs time and money. Each round, a statistical model learns from all results so far and suggests the most promising next test, balancing safe improvements against trying unexplored options. This repository records that process, its results and its limitations.
+> **TODO before publishing:** this README must describe what you actually ran.
+> Edit the Method and Results sections to match your real rounds, and delete
+> anything that is not true of your submissions.
 
-## Repository Structure
+## Method
+
+For each function the pipeline:
+
+1. Fits a Gaussian process (scikit-learn) with an ARD Matern-5/2 kernel and a
+   learned noise term, on all observations so far.
+2. Scores 20,000 candidate points (half sampled near the current best, half
+   uniform over the domain) with an acquisition function, either
+   Upper Confidence Bound (`mu + kappa * sigma`) or Expected Improvement.
+3. Returns the highest-scoring candidate that is not a near-duplicate of an
+   existing query, formatted to six decimals.
+
+Strategy and `kappa` are set per function in `config.json`, so changes to the
+exploration/exploitation balance are visible in the git history.
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `bbo.py` | GP fitting, acquisition functions, query formatting, CSV helpers |
+| `cli.py` | `suggest` a query per function, `log` a result |
+| `config.json` | Per-function acquisition strategy and exploration weight |
+| `data/observations.csv` | Every query and the value it returned (long format) |
+| `requirements.txt` | Dependencies |
+
+## Data format
+
+`data/observations.csv` has one row per query:
 
 ```
-IC-ML-AI-Capstone/
-├── README.md
-├── requirements.txt
-├── Data/
-│   ├── function_1/ ... function_8/
-│   │   ├── initial_inputs.npy       official starter inputs
-│   │   └── initial_outputs.npy      official starter outputs
-│   └── submissions.json             my queries + real portal outputs, by round
-├── Code/
-│   ├── bbo_core.py                  data loading, GP surrogate, acquisition, formatting
-│   ├── run_round.py                 produces one query per function for a round
-│   ├── plot_progress.py             best-so-far plot for all eight functions
-│   └── BBO_round_walkthrough.ipynb  step-by-step notebook version of a round
-├── Results/
-│   ├── round_NN_queries.json        query, settings, seed and diagnostics per round
-│   └── progress.png                 progress plot
-└── Documentation/
-    ├── Datasheet.md
-    └── Model_Card.md
+function,round,query,y,rationale
+3,1,0.412345-0.550000,1.234,"initial space-filling"
 ```
 
-## Documentation
+`query` is hyphen-separated with six decimals, matching the portal format.
 
-- **[Datasheet](Documentation/Datasheet.md)**: what the data is, how it was collected, transformations, intended uses and limitations.
-- **[Model Card](Documentation/Model_Card.md)**: how the optimiser works, settings per function and why, performance metrics, assumptions, limitations and ethics.
-
-## The Problem
-
-- Eight functions with 2 to 8 inputs each, every input between 0 and 1
-- Each returns one number, and every function is treated as **maximisation**
-- One query per function per round, submitted through the capstone portal as `x1-x2-...-xn` (six decimals, hyphens, no spaces)
-
-## Approach
-
-Bayesian optimisation with a Gaussian Process surrogate for each function. The GP predicts both a value and its uncertainty, and an acquisition function (Upper Confidence Bound or Expected Improvement) picks the next query by balancing the two. Settings are tuned per function from the official descriptions and the observed data. See the [Model Card](Documentation/Model_Card.md) for the full table.
-
-**Why Bayesian optimisation?** Evaluations are expensive and limited, the functions may be noisy and have several peaks, and Bayesian optimisation is designed to make the most of every evaluation by using uncertainty to decide where to look next.
-
-## How to Run a Round
+## Usage
 
 ```bash
 pip install -r requirements.txt
-
-# 1. Log last round's real portal results in Data/submissions.json, e.g.
-#    "function_1": [{"round": 1, "x": [0.214116, 0.834905], "y": 0.123}]
-
-# 2. Generate this round's queries (add --loo for leave-one-out diagnostics)
-python Code/run_round.py --round 2 --loo
-
-# 3. Update the progress plot
-python Code/plot_progress.py
+python cli.py suggest --round 7                 # one proposal per function
+python cli.py suggest --round 7 --function 3
+python cli.py log --function 3 --round 7 --query 0.412345-0.550000 --y 1.234 \
+                  --rationale "exploit near best, kappa=0.5"
 ```
-
-Or open `Code/BBO_round_walkthrough.ipynb` from inside the `Code/` folder and run all cells.
 
 ## Results
 
-![Progress](Results/progress.png)
+| Function | Dim | Rounds | Best value | Round of best |
+|----------|-----|--------|------------|---------------|
+| 1 | | | | |
+| 2 | | | | |
+| 3 | | | | |
+| 4 | | | | |
+| 5 | | | | |
+| 6 | | | | |
+| 7 | | | | |
+| 8 | | | | |
 
-| Function | Best output so far | Round |
-|---|---|---|
-| 1 | *(update after each round)* | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
-| 8 | | |
+## Reflections
 
-## Challenges and Insights
+Add links to your discussion-board reflections here.
 
-*(Add as the project progresses, e.g. which functions were hardest, which settings changed and why, what surprised you.)*
+## Licence
+
+MIT, see `LICENSE`.

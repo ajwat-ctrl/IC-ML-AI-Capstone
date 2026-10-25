@@ -1,0 +1,13 @@
+{
+  "default": {"strategy": "ucb", "kappa": 2.0, "local_scale": 0.08},
+  "functions": {
+    "1": {"strategy": "ucb", "kappa": 2.0},
+    "2": {"strategy": "ucb", "kappa": 2.0},
+    "3": {"strategy": "ucb", "kappa": 2.0},
+    "4": {"strategy": "ucb", "kappa": 2.0},
+    "5": {"strategy": "ucb", "kappa": 2.0},
+    "6": {"strategy": "ucb", "kappa": 2.0},
+    "7": {"strategy": "ucb", "kappa": 2.0},
+    "8": {"strategy": "ucb", "kappa": 2.0}
+  }
+}
