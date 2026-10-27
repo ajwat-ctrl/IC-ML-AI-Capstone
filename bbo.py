@@ -1,9 +1,15 @@
-"""Minimal Gaussian-process Bayesian optimisation helpers for the BBO capstone.
+"""Gaussian-process Bayesian optimisation helpers for the BBO capstone.
 
-Assumptions (check against the capstone portal guide):
+Assumptions:
   * every input lies in [0, 1) and every function is MAXIMISED;
   * a query is submitted as hyphen-separated values with six decimals,
     e.g. "0.123456-0.654321" for a 2D function.
+
+Per-function settings (see config.json) mirror the keys logged in
+data/rounds/round_XX_queries.json: output transform, Matern nu, noise term,
+acquisition function (ucb or ei), kappa / xi and the local search scale.
+The transform definitions below were inferred from those logs and are a
+reconstruction, not a copy of the original submission code.
 """
 from __future__ import annotations
 
@@ -12,7 +18,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, rankdata
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
 
@@ -20,6 +26,7 @@ COLUMNS = ["function", "round", "query", "y", "rationale"]
 UPPER = 0.999999
 
 
+# ---------------------------------------------------------------- parsing / io
 def parse_query(text: str) -> np.ndarray:
     return np.array([float(v) for v in text.strip().split("-")], dtype=float)
 
@@ -54,35 +61,65 @@ def append_observation(path: str | Path, function: int, rnd: int, query: str,
         w.writerow([function, rnd, query, y, rationale])
 
 
-def fit_gp(X: np.ndarray, y: np.ndarray, seed: int = 0) -> GaussianProcessRegressor:
-    """GP with an ARD Matern-5/2 kernel plus a learned noise term."""
+# ------------------------------------------------------------------ transforms
+def transform_y(y: np.ndarray, kind: str = "none") -> np.ndarray:
+    """Monotonic transforms of the outputs, applied before fitting the GP."""
+    y = np.asarray(y, dtype=float)
+    if kind == "none":
+        return y
+    if kind == "rank":       # ranks scaled to [0, 1]; for flat/spiky outputs
+        return (rankdata(y) - 1) / max(len(y) - 1, 1)
+    if kind == "signedlog":  # sign(y) * log(1 + |y|); for outputs of both signs and wide range
+        return np.sign(y) * np.log1p(np.abs(y))
+    if kind == "log1p":      # log(1 + y); for outputs spanning orders of magnitude
+        return np.log1p(np.maximum(y, -0.999999))
+    raise ValueError(f"unknown transform {kind!r}")
+
+
+# ----------------------------------------------------------------------- model
+def fit_gp(X: np.ndarray, y: np.ndarray, nu: float = 2.5, noise: bool = True,
+           seed: int = 0) -> GaussianProcessRegressor:
+    """GP with an ARD Matern kernel, optionally plus a learned noise term."""
     d = X.shape[1]
-    kernel = (ConstantKernel(1.0, (1e-2, 1e2))
-              * Matern(length_scale=np.ones(d), length_scale_bounds=(1e-2, 1e2), nu=2.5)
-              + WhiteKernel(1e-3, (1e-6, 1e-1)))
-    gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True,
+    kernel = ConstantKernel(1.0, (1e-2, 1e2)) * Matern(
+        length_scale=np.ones(d), length_scale_bounds=(1e-2, 10.0), nu=nu)
+    if noise:
+        kernel = kernel + WhiteKernel(1e-3, (1e-6, 1e-1))
+    gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True, alpha=1e-8,
                                   n_restarts_optimizer=10, random_state=seed)
     gp.fit(X, y)
     return gp
 
 
-def _score(mu, sd, best, strategy, kappa):
+def _lengthscales(gp):
+    k = gp.kernel_
+    for getter in (lambda k: k.k1.k2.length_scale, lambda k: k.k2.length_scale):
+        try:
+            return np.round(getter(k), 3).tolist()
+        except AttributeError:
+            continue
+    return None
+
+
+def _score(mu, sd, best, strategy, kappa, xi):
     if strategy == "ucb":
         return mu + kappa * sd
     if strategy == "ei":
         sd = np.maximum(sd, 1e-12)
-        z = (mu - best) / sd
-        return (mu - best) * norm.cdf(z) + sd * norm.pdf(z)
+        z = (mu - best - xi) / sd
+        return (mu - best - xi) * norm.cdf(z) + sd * norm.pdf(z)
     raise ValueError(f"unknown strategy {strategy!r} (use 'ucb' or 'ei')")
 
 
 def suggest(X: np.ndarray, y: np.ndarray, strategy: str = "ucb", kappa: float = 2.0,
+            xi: float = 0.0, transform: str = "none", nu: float = 2.5, noise: bool = True,
             n_candidates: int = 20000, local_frac: float = 0.5,
-            local_scale: float = 0.08, min_dist: float = 1e-3, seed: int = 0):
-    """Propose the next query. Returns (x, info)."""
+            local_scale: float = 0.05, min_dist: float = 1e-3, seed: int = 0):
+    """Propose the next query. Returns (x, info). Scores are in transformed units."""
     rng = np.random.default_rng(seed)
     d = X.shape[1]
-    gp = fit_gp(X, y, seed)
+    yt = transform_y(y, transform)
+    gp = fit_gp(X, yt, nu=nu, noise=noise, seed=seed)
 
     n_local = int(n_candidates * local_frac)
     best_x = X[np.argmax(y)]
@@ -95,15 +132,10 @@ def suggest(X: np.ndarray, y: np.ndarray, strategy: str = "ucb", kappa: float = 
     cand = cand[dist >= min_dist]
 
     mu, sd = gp.predict(cand, return_std=True)
-    score = _score(mu, sd, y.max(), strategy, kappa)
+    score = _score(mu, sd, yt.max(), strategy, kappa, xi)
     i = int(np.argmax(score))
 
-    k = gp.kernel_
-    try:
-        lengthscales = k.k1.k2.length_scale
-    except AttributeError:
-        lengthscales = None
-    info = {"pred_mean": float(mu[i]), "pred_std": float(sd[i]), "score": float(score[i]),
-            "best_so_far": float(y.max()), "n_obs": int(len(y)),
-            "lengthscales": None if lengthscales is None else np.round(lengthscales, 3).tolist()}
+    info = {"pred_mean_transformed": float(mu[i]), "pred_std_transformed": float(sd[i]),
+            "score": float(score[i]), "best_so_far": float(np.max(y)), "n_obs": int(len(y)),
+            "lengthscales": _lengthscales(gp)}
     return cand[i], info

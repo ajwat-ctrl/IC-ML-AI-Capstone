@@ -1,74 +1,77 @@
 # IC-ML-AI-Capstone: Black-Box Optimisation (BBO)
 
-Imperial College ML & AI capstone. The task: maximise eight unknown black-box
-functions (2D to 8D, inputs in [0, 1)) using one query per function per round.
+Imperial College ML & AI capstone. The task was to find the maximum of eight unknown functions (2 to 8 inputs each, all inputs scaled to [0, 1)) when each function could only be queried once per round.
 
-> **TODO before publishing:** this README must describe what you actually ran.
-> Edit the Method and Results sections to match your real rounds, and delete
-> anything that is not true of your submissions.
+**Status:** results for rounds 1 to 3 are included. Round 4 queries are logged but their results were still pending when this was written. Later rounds will be added as they are completed.
+
+## In plain language (non-technical summary)
+
+Imagine searching for the highest point in eight foggy landscapes, but you may only check one spot per landscape each week. I used a statistical model that learns from every earlier check to predict where the highest ground might be, and how unsure it is about each area. Over the first three rounds, seven of the eight landscapes gave better results than my first check, while one stayed flat. With so few checks I cannot be sure I have found any true peak, but the method turns each new result into a better-informed next guess.
+
+## Contents
+
+| Path | What it is |
+|------|------------|
+| `notebooks/bbo_analysis.ipynb` | Walk-through of the method and results, with outputs. Regenerates every table and plot from `data/` |
+| `bbo.py` | Core code: GP fitting, output transforms, acquisition functions (UCB, Expected Improvement), query formatting, CSV helpers |
+| `cli.py` | Command line: `suggest` a query per function, `log` a result |
+| `config.json` | Per-function settings (acquisition, kappa or xi, transform, Matern nu, noise, local search scale) |
+| `data/observations.csv` | Every submitted query and the value the portal returned (rounds 1 to 3) |
+| `data/submissions.json` | The same results in the format used during the project |
+| `data/rounds/` | Per-round query logs for rounds 2 to 4, with settings and model diagnostics |
+| `DATASHEET.md` | Datasheet for the dataset |
+| `MODEL_CARD.md` | Model card for the optimisation model |
+| `reflections/` | Written reflections |
+| `requirements.txt` | Dependencies |
+| `LICENSE` | MIT |
 
 ## Method
 
-For each function the pipeline:
+Each round, for every function, the pipeline:
 
-1. Fits a Gaussian process (scikit-learn) with an ARD Matern-5/2 kernel and a
-   learned noise term, on all observations so far.
-2. Scores 20,000 candidate points (half sampled near the current best, half
-   uniform over the domain) with an acquisition function, either
-   Upper Confidence Bound (`mu + kappa * sigma`) or Expected Improvement.
-3. Returns the highest-scoring candidate that is not a near-duplicate of an
-   existing query, formatted to six decimals.
+1. **Transforms the outputs** (per function): none, rank (for Function 1, whose outputs are almost all about zero), signed log (Function 4), or log(1+y) (Function 5, which spans orders of magnitude).
+2. **Fits a Gaussian process** (scikit-learn) with an ARD Matern kernel (nu = 1.5 for Function 2, 2.5 otherwise) and, except for Function 5, a learned noise term.
+3. **Scores 20,000 candidate points** (half near the current best, half uniform) with an acquisition function: Upper Confidence Bound (`mu + kappa * sigma`) for Functions 1, 2, 4, 5, 7, 8 and Expected Improvement for Functions 3 and 6.
+4. **Submits the best-scoring candidate** that is not a near-duplicate of an earlier query, formatted to six decimals.
+5. **Logs the settings and two leave-one-out checks** (error and calibration) in `data/rounds/`.
 
-Strategy and `kappa` are set per function in `config.json`, so changes to the
-exploration/exploitation balance are visible in the git history.
+Settings were the same in rounds 2, 3 and 4 (see `config.json`), so differences between queries come from new data rather than retuning. The transform definitions in `bbo.py` were inferred from the logged diagnostics and are a reconstruction, not a copy of the original submission code. Round 1 settings were not logged.
 
-## Repository layout
-
-| Path | Purpose |
-|------|---------|
-| `bbo.py` | GP fitting, acquisition functions, query formatting, CSV helpers |
-| `cli.py` | `suggest` a query per function, `log` a result |
-| `config.json` | Per-function acquisition strategy and exploration weight |
-| `data/observations.csv` | Every query and the value it returned (long format) |
-| `requirements.txt` | Dependencies |
-
-## Data format
-
-`data/observations.csv` has one row per query:
-
-```
-function,round,query,y,rationale
-3,1,0.412345-0.550000,1.234,"initial space-filling"
-```
-
-`query` is hyphen-separated with six decimals, matching the portal format.
-
-## Usage
+## How to reproduce
 
 ```bash
+git clone https://github.com/ajwat-ctrl/IC-ML-AI-Capstone.git
+cd IC-ML-AI-Capstone
 pip install -r requirements.txt
-python cli.py suggest --round 7                 # one proposal per function
-python cli.py suggest --round 7 --function 3
-python cli.py log --function 3 --round 7 --query 0.412345-0.550000 --y 1.234 \
-                  --rationale "exploit near best, kappa=0.5"
+jupyter notebook notebooks/bbo_analysis.ipynb
 ```
 
-## Results
+`python cli.py suggest --round 5` proposes queries from the points in `data/observations.csv`. The submitted queries were also fitted on the initial data supplied by the capstone (10 to 40 points per function), which is not stored here, so proposals will not match them exactly.
 
-| Function | Dim | Rounds | Best value | Round of best |
-|----------|-----|--------|------------|---------------|
-| 1 | | | | |
-| 2 | | | | |
-| 3 | | | | |
-| 4 | | | | |
-| 5 | | | | |
-| 6 | | | | |
-| 7 | | | | |
-| 8 | | | | |
+## Data
 
-## Reflections
+`data/observations.csv` has 24 rows (8 functions x 3 rounds): `function, round, query, y, rationale`. The data is tiny, so it is stored directly in the repo. See `DATASHEET.md`.
 
-Add links to your discussion-board reflections here.
+## Results (rounds 1 to 3)
+
+| Function | Inputs | Best submitted result | Round | Best of all points (incl. supplied data)* |
+|----------|--------|-----------------------|-------|--------------------------------------------|
+| 1 | 2 | about 0 (1.2e-149) | 1 | 7.7e-16 |
+| 2 | 2 | 0.648 | 3 | 0.648 |
+| 3 | 3 | -0.0489 | 3 | -0.0348 |
+| 4 | 4 | -1.136 | 2 | -1.136 |
+| 5 | 4 | 6065.5 | 3 | 6065.5 |
+| 6 | 5 | -0.5075 | 3 | -0.5075 |
+| 7 | 6 | 1.521 | 2 | 1.521 |
+| 8 | 8 | 9.922 | 3 | 9.922 |
+
+\* From the model's training set before round 4 (`data/rounds/round_04_queries.json`).
+
+Highlights: Function 5 rose from 150 to 1,581 to 6,065 as queries moved towards a corner of the input space. Function 4's round 3 query landed at -15.7, a large drop from its round 2 value, showing how sharply that function can fall. Function 1 returned values indistinguishable from zero in all three rounds.
+
+## Limitations
+
+See `MODEL_CARD.md`. In short: very few observations per function, a model that can be wrong in unexplored regions, and no guarantee of reaching the global maximum.
 
 ## Licence
 

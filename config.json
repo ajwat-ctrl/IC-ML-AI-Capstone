@@ -1,13 +1,85 @@
 {
-  "default": {"strategy": "ucb", "kappa": 2.0, "local_scale": 0.08},
+  "default": {
+    "strategy": "ucb",
+    "kappa": 2.0,
+    "xi": 0.0,
+    "transform": "none",
+    "nu": 2.5,
+    "noise": true,
+    "local_scale": 0.05
+  },
   "functions": {
-    "1": {"strategy": "ucb", "kappa": 2.0},
-    "2": {"strategy": "ucb", "kappa": 2.0},
-    "3": {"strategy": "ucb", "kappa": 2.0},
-    "4": {"strategy": "ucb", "kappa": 2.0},
-    "5": {"strategy": "ucb", "kappa": 2.0},
-    "6": {"strategy": "ucb", "kappa": 2.0},
-    "7": {"strategy": "ucb", "kappa": 2.0},
-    "8": {"strategy": "ucb", "kappa": 2.0}
+    "1": {
+      "strategy": "ucb",
+      "kappa": 3.0,
+      "xi": 0.0,
+      "transform": "rank",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "2": {
+      "strategy": "ucb",
+      "kappa": 2.0,
+      "xi": 0.0,
+      "transform": "none",
+      "nu": 1.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "3": {
+      "strategy": "ei",
+      "kappa": 0.0,
+      "xi": 0.01,
+      "transform": "none",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "4": {
+      "strategy": "ucb",
+      "kappa": 2.0,
+      "xi": 0.0,
+      "transform": "signedlog",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "5": {
+      "strategy": "ucb",
+      "kappa": 1.5,
+      "xi": 0.0,
+      "transform": "log1p",
+      "nu": 2.5,
+      "noise": false,
+      "local_scale": 0.05
+    },
+    "6": {
+      "strategy": "ei",
+      "kappa": 0.0,
+      "xi": 0.01,
+      "transform": "none",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "7": {
+      "strategy": "ucb",
+      "kappa": 2.5,
+      "xi": 0.0,
+      "transform": "none",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.05
+    },
+    "8": {
+      "strategy": "ucb",
+      "kappa": 1.5,
+      "xi": 0.0,
+      "transform": "none",
+      "nu": 2.5,
+      "noise": true,
+      "local_scale": 0.03
+    }
   }
 }
