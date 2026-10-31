@@ -2,24 +2,32 @@ function,round,query,y,rationale
 1,1,0.214116-0.834905,1.2253848987949779e-149,round 1 (settings not logged)
 1,2,0.845948-0.751251,-1.4324932225195444e-44,UCB kappa=3.0; transform=rank; nu=2.5; noise=True; local_scale=0.05
 1,3,0.716599-0.767508,-2.16456681056375e-19,UCB kappa=3.0; transform=rank; nu=2.5; noise=True; local_scale=0.05
+1,4,0.657095-0.722749,-1.2425129631503088e-07,UCB kappa=3.0; transform=rank; nu=2.5; noise=True; local_scale=0.05
 2,1,0.742245-0.000000,0.43732773296853156,round 1 (settings not logged)
 2,2,0.972398-0.952130,0.03478574984650183,UCB kappa=2.0; transform=none; nu=1.5; noise=True; local_scale=0.05
 2,3,0.689546-0.000000,0.6484254810899615,UCB kappa=2.0; transform=none; nu=1.5; noise=True; local_scale=0.05
+2,4,0.686513-0.999999,0.7022117291302405,UCB kappa=2.0; transform=none; nu=1.5; noise=True; local_scale=0.05
 3,1,0.049270-0.150671-0.000200,-0.1331353963618988,round 1 (settings not logged)
 3,2,0.935553-0.965685-0.858982,-0.05227480482507989,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
 3,3,0.878288-0.894584-0.396833,-0.04885826543951174,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
+3,4,0.070059-0.066163-0.646762,-0.15964340857317302,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
 4,1,0.516356-0.471444-0.233537-0.358396,-3.6173598243798426,round 1 (settings not logged)
 4,2,0.472556-0.398468-0.362086-0.382374,-1.1360324509695903,UCB kappa=2.0; transform=signedlog; nu=2.5; noise=True; local_scale=0.05
 4,3,0.115116-0.373777-0.009525-0.089239,-15.695293801572543,UCB kappa=2.0; transform=signedlog; nu=2.5; noise=True; local_scale=0.05
+4,4,0.460301-0.391323-0.046366-0.995460,-22.083278669849737,UCB kappa=2.0; transform=signedlog; nu=2.5; noise=True; local_scale=0.05
 5,1,0.058431-0.013990-0.235219-0.983775,150.17709396441353,round 1 (settings not logged)
 5,2,0.012619-0.607925-0.970462-0.987653,1580.7221958269406,UCB kappa=1.5; transform=log1p; nu=2.5; noise=False; local_scale=0.05
 5,3,0.986590-0.866087-0.978810-0.997372,6065.458032849537,UCB kappa=1.5; transform=log1p; nu=2.5; noise=False; local_scale=0.05
+5,4,0.982139-0.999999-0.999999-0.999999,8328.682234834752,UCB kappa=1.5; transform=log1p; nu=2.5; noise=False; local_scale=0.05
 6,1,0.423153-0.164605-0.817796-0.997651-0.112792,-0.6030548000809111,round 1 (settings not logged)
 6,2,0.475156-0.263296-0.490215-0.883762-0.015135,-0.5324307137291604,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
 6,3,0.505079-0.274306-0.630909-0.903545-0.000000,-0.5075168624601324,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
+6,4,0.514774-0.313781-0.615561-0.978975-0.156797,-0.54866451971822,EI xi=0.01; transform=none; nu=2.5; noise=True; local_scale=0.05
 7,1,0.000000-0.515594-0.170774-0.207030-0.358144-0.818528,1.1168028474282425,round 1 (settings not logged)
 7,2,0.000000-0.458439-0.175495-0.195355-0.360063-0.657572,1.5209439673036755,UCB kappa=2.5; transform=none; nu=2.5; noise=True; local_scale=0.05
 7,3,0.000000-0.488060-0.159296-0.048439-0.381780-0.659807,0.8327647624522688,UCB kappa=2.5; transform=none; nu=2.5; noise=True; local_scale=0.05
+7,4,0.000000-0.411547-0.197555-0.292318-0.372127-0.605324,1.75494121082217,UCB kappa=2.5; transform=none; nu=2.5; noise=True; local_scale=0.05
 8,1,0.055465-0.027998-0.308203-0.000199-0.950318-0.598844-0.087271-0.301130,9.808023642848,round 1 (settings not logged)
 8,2,0.089215-0.117979-0.011349-0.203377-0.952688-0.113026-0.274964-0.676179,9.7804335236329,UCB kappa=1.5; transform=none; nu=2.5; noise=True; local_scale=0.03
 8,3,0.052573-0.128542-0.058623-0.109321-0.970058-0.683181-0.152298-0.779592,9.9223106734526,UCB kappa=1.5; transform=none; nu=2.5; noise=True; local_scale=0.03
+8,4,0.055944-0.126721-0.139133-0.082556-0.963639-0.620958-0.232671-0.804201,9.9564530054374,UCB kappa=1.5; transform=none; nu=2.5; noise=True; local_scale=0.03

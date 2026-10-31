@@ -4,11 +4,11 @@
 
 The main gain came from choosing queries with a Gaussian process surrogate and an acquisition function. A fitted model turns every past result into a prediction with an uncertainty estimate, so each query is chosen deliberately instead of by guesswork.
 
-The second gain came from treating the eight functions differently. The flat Function 1 used the largest exploration weight (kappa 3.0), while Function 8 used one of the smallest (kappa 1.5). From round 2 onward each function had its own settings: UCB for six functions and Expected Improvement for two, with different output transforms, kernel smoothness and noise handling. Function 5 shows the payoff most clearly: its result rose from 150 in round 1 to 1,581 in round 2 and 6,065 in round 3 as queries moved towards a high corner of the input space.
+The second gain came from treating the eight functions differently. The flat Function 1 used the largest exploration weight (kappa 3.0), while Function 8 used one of the smallest (kappa 1.5). From round 2 onward each function had its own settings: UCB for six functions and Expected Improvement for two, with different output transforms, kernel smoothness and noise handling. Function 5 shows the payoff most clearly: its result rose from 150 in round 1 to 1,581 in round 2, 6,065 in round 3 and 8,329 in round 4 as queries moved towards a high corner of the input space.
 
 These choices shaped the whole challenge:
 
-- Rounds 2 to 4: keep each function's settings fixed (UCB with kappa 1.5 to 3.0, or EI with xi 0.01), so changes in the queries come from new data.
+- Rounds 2 to 5: keep each function's settings fixed (UCB with kappa 1.5 to 3.0, or EI with xi 0.01), so changes in the queries come from new data.
 - Next: consider lowering the exploration weight in later rounds, because a wasted query costs more near the end than at the start.
 - Throughout: log every query, result and rationale, which stopped me repeating myself or chasing noise.
 
