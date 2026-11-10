@@ -1,78 +1,88 @@
-# IC-ML-AI-Capstone: Black-Box Optimisation (BBO)
+# IC-ML-AI-Capstone: Black-Box Optimisation Challenge
 
-Imperial College ML & AI capstone. The task was to find the maximum of eight unknown functions (2 to 8 inputs each, all inputs scaled to [0, 1)) when each function could only be queried once per round.
+## Summary
 
-**Status:** results for rounds 1 to 4 are included. Round 5 queries are logged but their results were still pending when this was written. Later rounds will be added as they are completed.
+This project is the capstone for the Imperial College London / Emeritus Professional Certificate in Machine Learning and Artificial Intelligence. The challenge is to find the inputs that give the highest output for eight hidden functions, without knowing their formulas and with only one test per function each round. This is like tuning an expensive experiment, such as a drug formulation or a factory process, where every test costs time and money. Each round, a statistical model learns from all results so far and suggests the most promising next test, balancing safe improvements against trying unexplored options. This repository records that process, its results and its limitations.
 
-## In plain language (non-technical summary)
+## Repository Structure
 
-Imagine searching for the highest point in eight foggy landscapes, but you may only check one spot per landscape each week. I used a statistical model that learns from every earlier check to predict where the highest ground might be, and how unsure it is about each area. Over the first four rounds, seven of the eight landscapes gave better results than my first check, four of them improving again in the latest round, while one stayed flat. With so few checks I cannot be sure I have found any true peak, but the method turns each new result into a better-informed next guess.
-
-## Contents
-
-| Path | What it is |
-|------|------------|
-| `notebooks/bbo_analysis.ipynb` | Walk-through of the method and results, with outputs. Regenerates every table and plot from `data/` |
-| `bbo.py` | Core code: GP fitting, output transforms, acquisition functions (UCB, Expected Improvement), query formatting, CSV helpers |
-| `cli.py` | Command line: `suggest` a query per function, `log` a result |
-| `config.json` | Per-function settings (acquisition, kappa or xi, transform, Matern nu, noise, local search scale) |
-| `data/observations.csv` | Every submitted query and the value the portal returned (rounds 1 to 4) |
-| `data/submissions.json` | The same results in the format used during the project |
-| `data/rounds/` | Per-round query logs for rounds 2 to 5, with settings and model diagnostics |
-| `DATASHEET.md` | Datasheet for the dataset |
-| `MODEL_CARD.md` | Model card for the optimisation model |
-| `reflections/` | Written reflections |
-| `requirements.txt` | Dependencies |
-| `LICENSE` | MIT |
-
-## Method
-
-Each round, for every function, the pipeline:
-
-1. **Transforms the outputs** (per function): none, rank (for Function 1, whose outputs are almost all about zero), signed log (Function 4), or log(1+y) (Function 5, which spans orders of magnitude).
-2. **Fits a Gaussian process** (scikit-learn) with an ARD Matern kernel (nu = 1.5 for Function 2, 2.5 otherwise) and, except for Function 5, a learned noise term.
-3. **Scores 20,000 candidate points** (half near the current best, half uniform) with an acquisition function: Upper Confidence Bound (`mu + kappa * sigma`) for Functions 1, 2, 4, 5, 7, 8 and Expected Improvement for Functions 3 and 6.
-4. **Submits the best-scoring candidate** that is not a near-duplicate of an earlier query, formatted to six decimals.
-5. **Logs the settings and two leave-one-out checks** (error and calibration) in `data/rounds/`.
-
-Settings were the same in rounds 2 to 5 (see `config.json`), so differences between queries come from new data rather than retuning. The transform definitions in `bbo.py` were inferred from the logged diagnostics and are a reconstruction, not a copy of the original submission code. Round 1 settings were not logged.
-
-## How to reproduce
-
-```bash
-git clone https://github.com/ajwat-ctrl/IC-ML-AI-Capstone.git
-cd IC-ML-AI-Capstone
-pip install -r requirements.txt
-jupyter notebook notebooks/bbo_analysis.ipynb
+```
+IC-ML-AI-Capstone/
+├── README.md
+├── requirements.txt
+├── Data/
+│   ├── function_1/ ... function_8/
+│   │   ├── initial_inputs.npy       official starter inputs
+│   │   └── initial_outputs.npy      official starter outputs
+│   └── submissions.json             my queries + real portal outputs, by round
+├── Code/
+│   ├── bbo_core.py                  data loading, GP surrogate, acquisition, formatting
+│   ├── run_round.py                 produces one query per function for a round
+│   ├── plot_progress.py             best-so-far plot for all eight functions
+│   └── BBO_round_walkthrough.ipynb  step-by-step notebook version of a round
+├── Results/
+│   ├── round_NN_queries.json        query, settings, seed and diagnostics per round
+│   └── progress.png                 progress plot
+└── Documentation/
+    ├── Datasheet.md
+    └── Model_Card.md
 ```
 
-`python cli.py suggest --round 6` proposes queries from the points in `data/observations.csv`. The submitted queries were also fitted on the initial data supplied by the capstone (10 to 40 points per function), which is not stored here, so proposals will not match them exactly.
+## Documentation
 
-## Data
+- **[Datasheet](Documentation/Datasheet.md)**: what the data is, how it was collected, transformations, intended uses and limitations.
+- **[Model Card](Documentation/Model_Card.md)**: how the optimiser works, settings per function and why, performance metrics, assumptions, limitations and ethics.
 
-`data/observations.csv` has 32 rows (8 functions x 4 rounds): `function, round, query, y, rationale`. The data is tiny, so it is stored directly in the repo. See `DATASHEET.md`.
+## The Problem
 
-## Results (rounds 1 to 4)
+- Eight functions with 2 to 8 inputs each, every input between 0 and 1
+- Each returns one number, and every function is treated as **maximisation**
+- One query per function per round, submitted through the capstone portal as `x1-x2-...-xn` (six decimals, hyphens, no spaces)
 
-| Function | Inputs | Best submitted result | Round | Best of all points (incl. supplied data)* |
-|----------|--------|-----------------------|-------|--------------------------------------------|
-| 1 | 2 | about 0 (1.2e-149) | 1 | 7.7e-16 |
-| 2 | 2 | 0.702 | 4 | 0.702 |
-| 3 | 3 | -0.0489 | 3 | -0.0348 |
-| 4 | 4 | -1.136 | 2 | -1.136 |
-| 5 | 4 | 8328.7 | 4 | 8328.7 |
-| 6 | 5 | -0.5075 | 3 | -0.5075 |
-| 7 | 6 | 1.755 | 4 | 1.755 |
-| 8 | 8 | 9.956 | 4 | 9.956 |
+## Approach
 
-\* From the model's training set before round 5 (`data/rounds/round_05_queries.json`).
+Bayesian optimisation with a Gaussian Process surrogate for each function. The GP predicts both a value and its uncertainty, and an acquisition function (Upper Confidence Bound or Expected Improvement) picks the next query by balancing the two. Settings are tuned per function from the official descriptions and the observed data. See the [Model Card](Documentation/Model_Card.md) for the full table.
 
-Highlights: Functions 2, 5, 7 and 8 each set a new best in round 4. Function 5 rose from 150 to 1,581 to 6,065 to 8,329 as queries moved towards a corner of the input space. Functions 3 and 6 got worse in round 4 than their round 3 results. Function 4 fell sharply in rounds 3 and 4 (-15.7, then -22.1), showing how steeply that function drops away from its best region. Function 1 returned values indistinguishable from zero in all four rounds.
+**Why Bayesian optimisation?** Evaluations are expensive and limited, the functions may be noisy and have several peaks, and Bayesian optimisation is designed to make the most of every evaluation by using uncertainty to decide where to look next.
 
-## Limitations
+## How to Run a Round
 
-See `MODEL_CARD.md`. In short: very few observations per function, a model that can be wrong in unexplored regions, and no guarantee of reaching the global maximum.
+```bash
+pip install -r requirements.txt
 
-## Licence
+# 1. Log last round's real portal results in Data/submissions.json, e.g.
+#    "function_1": [{"round": 1, "x": [0.214116, 0.834905], "y": 0.123}]
 
-MIT, see `LICENSE`.
+# 2. Generate this round's queries (add --loo for leave-one-out diagnostics)
+python Code/run_round.py --round 2 --loo
+
+# 3. Update the progress plot
+python Code/plot_progress.py
+```
+
+Or open `Code/BBO_round_walkthrough.ipynb` from inside the `Code/` folder and run all cells.
+
+## Results
+
+![Progress](Results/progress.png)
+
+| Function | Best output so far | Round found |
+|---|---|---|
+| 1 | 1.033e-14 | 5 |
+| 2 | 0.7022 | 4 |
+| 3 | -0.0487 | 5 |
+| 4 | 0.0413 | 5 |
+| 5 | 8328.68 | 4 |
+| 6 | -0.2128 | 7 |
+| 7 | 1.7549 | 4 |
+| 8 | 9.9565 | 4 |
+
+*(7 real rounds submitted so far; table updates each round from `Data/submissions.json`.)*
+
+## Challenges and Insights
+
+- **Function 1** appears to have a maximum essentially at 0 (best observed is ~1e-14, effectively flat across most of the search space), so the optimiser converged within a few rounds and later queries are mostly local refinement rather than exploration.
+- **Functions 2, 4, 5, 7 and 8** all found their best value early (by round 4) and have since plateaued — later rounds nudge around that optimum rather than beating it, which is expected once the GP's uncertainty in that region collapses.
+- **Function 6** was the outlier: it kept improving through round 7, including a large jump that round, suggesting its optimum sits somewhere the earlier UCB/EI settings hadn't prioritised yet. Worth watching whether this keeps climbing or was a one-off.
+- **Function 5** has the widest output range by far (hundreds to thousands) and needed a `log1p`/`signedlog`-style transform before the GP; without it a handful of large values would dominate the kernel fit and starve the rest of the input space of attention.
+- Leave-one-out diagnostics (`--loo` flag) have been useful for sanity-checking whether a function's GP is well-calibrated (calibration ratio near 1) versus overconfident, which fed back into per-function kernel/noise settings in `Code/run_round.py`.
