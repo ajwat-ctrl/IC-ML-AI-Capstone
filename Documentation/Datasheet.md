@@ -36,7 +36,7 @@ Input-output pairs for eight synthetic black-box functions. Each input is a vect
 - `Results/round_NN_queries.json`: the query, settings, random seed and diagnostics used to produce each round's submission
 
 **Size**
-165 starter points across the eight functions, plus one new point per function per round.
+175 starter points across the eight functions (10 + 10 + 15 + 30 + 20 + 20 + 30 + 40, matching the "Starter points" column above), plus one new point per function per round.
 
 **Gaps and known issues**
 - The data is deliberately sparse. In 6 to 8 dimensions, even 40 points cover only a tiny fraction of the space.

@@ -1,46 +1,104 @@
-# Datasheet: BBO capstone observations
+# Datasheet: BBO Capstone Dataset
 
-Follows the structure of "Datasheets for Datasets" (Gebru et al.). Items marked `[TODO]` need your own input.
+*Following the "Datasheets for Datasets" framework (Gebru et al., 2021) as introduced in Mini-lesson 21.1.*
 
-## Motivation
+## 1. Motivation
 
-- **Why was the dataset created?** To record every query I submitted in the BBO capstone and the value each returned, so the optimisation can be reproduced and analysed.
-- **Who created it, and who funded it?** Created by [TODO: your name] as part of the Imperial College ML & AI programme. No external funding.
+**Why was this dataset created?**
+To support the Black-Box Optimisation (BBO) capstone of the Imperial College London / Emeritus Professional Certificate in Machine Learning and Artificial Intelligence. The task is to find the input that maximises each of eight unknown functions while using as few evaluations as possible, which mirrors real settings where each test is slow or expensive (clinical trials, manufacturing prototypes, long model-training runs).
 
-## Composition
+**Who created it?**
+The starter data was created and provided by the programme (Imperial College London with Emeritus). The additional points in this repository are my own queries, chosen with the code in `Code/` and evaluated by the programme's capstone portal.
 
-- **What does each row represent?** One query to one black-box function in one round.
-- **Columns:** `function` (1 to 8), `round`, `query` (inputs, hyphen-separated, six decimals, each in [0, 1)), `y` (value returned by the portal), `rationale` (the settings used to choose the query).
-- **How many rows?** 32 (8 functions x rounds 1 to 4). Round 5 queries are logged in `data/rounds/round_05_queries.json`; their results were pending.
-- **Input dimensions:** F1 2, F2 2, F3 3, F4 4, F5 4, F6 5, F7 6, F8 8.
-- **Initial data not included.** The capstone supplied initial points for each function (10, 10, 15, 30, 20, 20, 30 and 40 for functions 1 to 8, inferred from the model's point counts before round 2). The model was trained on these as well as on my submissions, but they are not stored in this repo. [TODO: add them if the course allows.]
-- **Is anything missing?** Only submitted queries are recorded. The functions' true formulas and global optima are unknown. Round 1 settings were not logged.
-- **Does it contain personal data?** No.
+**What task does it support?**
+Sequential, small-budget optimisation: fitting a surrogate model to observed points and choosing one new query per function per round.
 
-## Collection process
+## 2. Composition
 
-- **How was it collected?** Through the capstone portal, one query per function per round. Round 2 was dated 2026-10-20, round 3 on 2026-10-25, round 4 on 2026-10-27 and round 5 on 2026-10-31 [TODO: add the round 1 date].
-- **How were query points chosen?** By a Gaussian-process model with an acquisition function (UCB or Expected Improvement, per function). Round 1 queries were chosen before the logged pipeline settings existed [TODO: say how].
-- **Is the data noisy?** Function 1 returns values that are numerically indistinguishable from zero (|y| below 1e-6 in rounds 1 to 4). Functions 2, 3, 4, 6, 7 and 8 were fitted with a learned noise term, and Function 5 without one. Repeat queries were not used to measure noise directly.
+**What does the dataset contain?**
+Input-output pairs for eight synthetic black-box functions. Each input is a vector of numbers between 0 and 1; each output is a single number. The functions are labelled with illustrative real-world scenarios, but they are synthetic, and no real measurements, people or organisations are involved.
 
-## Preprocessing
+| Function | Scenario (from the official description) | Input dims | Starter points | Starter output range |
+|---|---|---|---|---|
+| 1 | Contamination source detection | 2 | 10 | about -0.0036 to 0 |
+| 2 | Noisy ML model log-likelihood | 2 | 10 | -0.066 to 0.611 |
+| 3 | Drug discovery (negative side effects) | 3 | 15 | -0.399 to -0.035 |
+| 4 | Warehouse placement model | 4 | 30 | -32.6 to -4.03 |
+| 5 | Chemical process yield | 4 | 20 | 0.113 to 1,088.9 |
+| 6 | Recipe optimisation (penalty score) | 5 | 20 | -2.57 to -0.714 |
+| 7 | ML model hyperparameters | 6 | 30 | 0.003 to 1.365 |
+| 8 | 8D black-box performance metric | 8 | 40 | 5.59 to 9.60 |
 
-- Inputs are used as submitted. Outputs are transformed only inside the model (rank for F1, signed log for F4, log(1+y) for F5, none otherwise); stored values are raw.
+**Format and location**
+- `Data/function_N/initial_inputs.npy`: starter inputs, shape (points, dims)
+- `Data/function_N/initial_outputs.npy`: starter outputs, shape (points,)
+- `Data/submissions.json`: my own queries and the real outputs returned by the portal, one entry per function per round
+- `Results/round_NN_queries.json`: the query, settings, random seed and diagnostics used to produce each round's submission
 
-## Uses
+**Size**
+175 starter points across the eight functions (10 + 10 + 15 + 30 + 20 + 20 + 30 + 40, matching the "Starter points" column above), plus one new point per function per round.
 
-- **Intended use:** studying and reproducing this optimisation run; a teaching example of Bayesian optimisation under a tight query budget.
-- **Not suitable for:** drawing conclusions about the true functions beyond the sampled regions, benchmarking optimisers (the sample is tiny and adaptively chosen), or any decision about people.
+**Gaps and known issues**
+- The data is deliberately sparse. In 6 to 8 dimensions, even 40 points cover only a tiny fraction of the space.
+- Function 1's starter outputs are almost all zero or near zero (no source has been located yet), so they carry very little information about where the peak is.
+- Function 2 is described as noisy, so repeating the same input may give a different output.
+- No ground truth, formula or noise level is disclosed for any function.
+- There are no train/test splits, because every point is used to fit the surrogate and the true evaluation happens on the portal.
 
-## Biases and limitations
+**Sensitive content**
+None. The data is synthetic, contains no personal information and represents no human population.
 
-- **Adaptive sampling bias.** Points were chosen by the optimiser, not at random, so they cluster near promising regions. Averages and correlations from them are not representative of the input space.
-- **Small sample.** Four submitted points per function so far, in up to 8 dimensions.
-- **Single-run noise.** One evaluation per point, so a lucky value is indistinguishable from a good point.
-- **Boundary points.** Several queries sit on or near the edge of the input range (for example Functions 2 and 5 in rounds 4 and 5), where the model has little information.
+## 3. Collection Process
 
-## Distribution and maintenance
+**Starter data:** pre-generated by the programme and released at the start of the capstone.
 
-- **Where?** `data/` in this public repository, under the MIT licence.
-- **Maintenance:** I will add results for round 5 and later rounds as they are completed.
-- **Contact:** via the GitHub repository.
+**My queries:** one new input per function per round, chosen by:
+1. combining the starter data with all logged portal results,
+2. fitting a Gaussian Process surrogate (an anisotropic Matern kernel with a noise term),
+3. generating about 30,000 candidates (20,000 uniform across the space plus 10,000 small perturbations around the three best points so far),
+4. scoring candidates with Upper Confidence Bound or Expected Improvement, depending on the function,
+5. checking the winner is within [0, 0.999999] and formatting it to six decimals.
+
+Settings for each function are listed and justified in `Code/run_round.py` and in the Model Card.
+
+**Time frame:** one round per module, from Module 12 until the final submission. Portal results are returned at the end of each module.
+
+**Ethical review:** not required, because the data is fully synthetic and involves no people or animals.
+
+## 4. Preprocessing and Uses
+
+**Transformations**
+The raw `.npy` files are never modified. All transforms happen in memory during modelling and preserve the ordering of outputs, so maximising the transformed value still maximises the real output:
+- Function 1: rank transform (near-zero outputs would otherwise dominate the fit)
+- Function 4: signed log (compresses outputs spanning -33 to -4)
+- Function 5: log(1 + y) (outputs span four orders of magnitude)
+- All other functions: no transform
+
+**Intended uses**
+- Learning and demonstrating Bayesian optimisation under a tight evaluation budget
+- Comparing surrogate models and acquisition functions on functions of different dimensionality
+
+**Inappropriate uses**
+- Drawing real conclusions about radiation detection, drug safety, chemical yield, warehouse logistics or recipes. The scenario labels are illustrative only.
+- Benchmarking optimisers in general, since eight sparse functions with one query per round are far too small a sample.
+- Treating any output as a real measurement.
+
+## 5. Distribution and Maintenance
+
+**Where is it available?**
+The starter data is distributed to enrolled students through the programme's learning platform. The copies here are the small starter files, included so the code runs out of the box. My own query log is published in this repository.
+
+**Terms of use**
+Use of the starter data is governed by the programme's terms. My code and query log are shared for educational review.
+
+**Who maintains it?**
+The programme maintains the starter data and the evaluation portal. I maintain this repository and update `Data/submissions.json` and `Results/` after every round.
+
+**Updates and corrections**
+Every update is a Git commit, so the full history of changes is visible. If a logged result is found to be wrong, it is corrected in `submissions.json` with a commit message explaining the correction, rather than being silently overwritten.
+
+## 6. Known Limitations and Biases
+
+- **Sampling bias by design:** after the first few rounds, my queries cluster around the best points found so far. That is how the acquisition functions are meant to behave, but it leaves corners and edges of the higher-dimensional spaces almost unsampled.
+- **Smoothness assumption:** the Gaussian Process assumes nearby inputs give similar outputs. A very narrow peak (likely for Function 1) can sit unnoticed between sampled points.
+- **No independent validation:** with one query per function per round, every modelling choice is checked only with leave-one-out tests on points already observed.

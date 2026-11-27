@@ -8,7 +8,7 @@
 |---|---|
 | **Name** | GP-UCB/EI sequential optimiser |
 | **Type** | Sequential model-based (Bayesian) optimisation, one strategy per function |
-| **Version** | v1.0 (update this each time settings change; see Change Log) |
+| **Version** | v1.0, unchanged through Round 12 (see Change Log — no settings have needed revision yet) |
 | **Code** | `Code/bbo_core.py`, `Code/run_round.py`, `Code/BBO_round_walkthrough.ipynb` |
 | **Libraries** | NumPy, SciPy, scikit-learn, Matplotlib |
 
@@ -56,8 +56,10 @@ Each round, for each function:
 
 | Round | Change | Reason |
 |---|---|---|
-| 1 | Initial settings above | Based on the official descriptions and starter data |
-| *2* | *(record each change here)* | *(what the results showed)* |
+| 1 | Initial settings above (transform, kernel smoothness `nu`, noise flag, acquisition type/kappa/xi, local search scale) | Based on the official per-function descriptions and the starter data's output ranges and shapes |
+| 2–12 | No settings changed | Every function's best-so-far kept improving under its round-1 settings (see results table below), and LOO calibration ratios stayed in a reasonable band (roughly 0.56–1.26) rather than drifting toward clear over- or under-confidence, so there was no diagnostic signal to justify retuning. The only thing that changes round to round is the data: `run_round.py` refits each function's GP on starter data plus every real result logged so far, which is what shifts each query toward better regions without any manual setting change. |
+
+All per-function settings in the table above are therefore unchanged from Round 1 through the round reflected in this card (Round 12 submitted, Round 13 queries generated). If a function's calibration ratio moves outside roughly [0.7, 1.3] or its best-so-far stalls for several consecutive rounds, that is the trigger to revisit its transform, kernel or acquisition kappa/xi — not a scheduled retuning.
 
 ## 4. Performance
 
@@ -83,18 +85,37 @@ Each round, for each function:
 
 Reading these: most functions sit between 1.1 and 1.3, meaning the GP is slightly overconfident, which argues for keeping some exploration. Functions 4 and 8 are below 1, meaning the GP is somewhat underconfident there.
 
-**Results by round:** *(fill in as rounds come back)*
+**Results by round** (through Round 12 submitted; 12 real points logged per function beyond the starter data):
 
-| Fn | Best after round 1 | Best so far | Round achieved |
-|---|---|---|---|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
-| 6 | | | |
-| 7 | | | |
-| 8 | | | |
+| Fn | Starter best | Best after round 1 | Best so far | Round achieved |
+|---|---|---|---|---|
+| 1 | 7.711e-16 | 7.711e-16 (no improvement) | 4.135e-12 | 9 |
+| 2 | 0.6112 | 0.6112 (no improvement) | 0.7648 | 10 |
+| 3 | -0.0348 | -0.0348 (no improvement) | -0.0266 | 8 |
+| 4 | -4.0255 | -3.6174 | 0.2729 | 12 |
+| 5 | 1,088.86 | 1,088.86 (no improvement) | 8,662.41 | 10 |
+| 6 | -0.7143 | -0.6031 | -0.2120 | 11 |
+| 7 | 1.3650 | 1.3650 (no improvement) | 1.8556 | 9 |
+| 8 | 9.5985 | 9.8080 | 9.9846 | 12 |
+
+Functions 1, 2, 3, 5 and 7 didn't beat their starter best until later rounds — mostly because the GP spends its first few queries reducing uncertainty broadly before the acquisition function commits to a promising region. Functions 4, 6 and 8 improved immediately in Round 1, likely because their starter data was sparser relative to their dimensionality, leaving more obviously-better regions nearby.
+
+**Current LOO diagnostics** (computed ahead of Round 13, i.e. using all 12 real rounds):
+
+| Fn | n points | LOO MAE* | Calibration ratio | vs. baseline |
+|---|---|---|---|---|
+| 1 | 22 | 0.262 | 0.985 | was 1.23 → now close to 1, no longer overconfident |
+| 2 | 22 | 0.115 | 1.029 | was 1.20 → now close to 1 |
+| 3 | 27 | 0.035 | 0.948 | was 1.26 → now close to 1 |
+| 4 | 42 | 0.410 | 0.865 | was 0.77 → still mildly underconfident |
+| 5 | 32 | 0.636 | 1.259 | was 1.26 → essentially unchanged, still somewhat overconfident |
+| 6 | 32 | 0.210 | 1.044 | was 1.33 → now close to 1 |
+| 7 | 42 | 0.172 | 0.713 | was 1.09 → drifting underconfident as more points cluster near the optimum |
+| 8 | 52 | 0.048 | 0.557 | was 0.62 → increasingly underconfident |
+
+*Errors are on the transformed scale for Functions 1, 4 and 5, so they are not comparable across functions.
+
+Functions 7 and 8 are the ones to watch: their calibration ratios have drifted further below 1 as data accumulated near their current best points, meaning the GP's uncertainty estimates there are too wide relative to actual error — a sign the kernel noise term could be reduced slightly in a future settings pass, without being an urgent problem since it doesn't reduce exploitation accuracy.
 
 ## 5. Assumptions and Limitations
 
@@ -123,4 +144,4 @@ The functions are synthetic, so there is no direct risk of physical, financial o
 
 ## 7. Is This Card Detailed Enough?
 
-The current structure covers what someone needs to understand, rerun and critique the approach: how it works, settings per function with reasons, metrics, and failure modes. The main additions as the project runs will be the Change Log and the results table. Mathematical derivations of the kernels and acquisition functions are deliberately left to the code comments and the notebook, to keep this card readable for non-specialists.
+The current structure covers what someone needs to understand, rerun and critique the approach: how it works, settings per function with reasons, metrics, and failure modes. With the Change Log and results table now filled in through Round 12, the main remaining addition is a final pass after the last round of the capstone, updating the results table and calibration comparison one more time and adding any closing observations to the Assumptions and Limitations section. Mathematical derivations of the kernels and acquisition functions are deliberately left to the code comments and the notebook, to keep this card readable for non-specialists.
