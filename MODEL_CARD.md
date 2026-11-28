@@ -1,147 +1,72 @@
-# Model Card: GP-Based Bayesian Optimisation for the BBO Capstone
+# Model card: GP-based query selector for the BBO capstone
 
-*Following the "Model Cards for Model Reporting" framework (Mitchell et al., 2019) as introduced in Mini-lesson 21.2.*
+Follows the structure of "Model Cards for Model Reporting" (Mitchell et al.). Items marked `[TODO]` need your own input.
 
-## 1. Overview
+## Model details
 
-| | |
-|---|---|
-| **Name** | GP-UCB/EI sequential optimiser |
-| **Type** | Sequential model-based (Bayesian) optimisation, one strategy per function |
-| **Version** | v1.0, unchanged through Round 12 (see Change Log — no settings have needed revision yet) |
-| **Code** | `Code/bbo_core.py`, `Code/run_round.py`, `Code/BBO_round_walkthrough.ipynb` |
-| **Libraries** | NumPy, SciPy, scikit-learn, Matplotlib |
+- **Type:** Gaussian process regression (scikit-learn `GaussianProcessRegressor`) used as a surrogate model, with an acquisition function that selects the next query.
+- **Kernel:** constant x ARD Matern, plus a white-noise term for all functions except Function 5. Hyperparameters fitted by maximum likelihood.
+- **Per-function settings** (identical in every logged round, 2 to 13; `config.json`):
 
-## 2. Intended Use
+| Function | Acquisition | Parameter | Output transform | Matern nu | Noise term |
+|----------|-------------|-----------|------------------|-----------|------------|
+| 1 | UCB | kappa 3.0 | rank | 2.5 | yes |
+| 2 | UCB | kappa 2.0 | none | 1.5 | yes |
+| 3 | EI | xi 0.01 | none | 2.5 | yes |
+| 4 | UCB | kappa 2.0 | signed log | 2.5 | yes |
+| 5 | UCB | kappa 1.5 | log(1+y) | 2.5 | no |
+| 6 | EI | xi 0.01 | none | 2.5 | yes |
+| 7 | UCB | kappa 2.5 | none | 2.5 | yes |
+| 8 | UCB | kappa 1.5 | none | 2.5 | yes |
 
-**Suitable for**
-- Choosing one query per round for each of the eight capstone functions
-- Small datasets (roughly 10 to 100 points) in 2 to 8 dimensions with inputs between 0 and 1
-- Situations where each evaluation is expensive and the function's formula is unknown
+- **Candidate search:** 20,000 random candidates per function (half drawn near the current best, with local scale 0.05, or 0.03 for Function 8); the best score wins and near-duplicates of earlier queries are removed.
+- **Reconstruction note:** `bbo.py` re-creates this pipeline from the logged settings. The transform definitions were inferred from the logs, so it is not a copy of the original submission code.
+- **Author and version:** [TODO: your name]; final version, round 13 (2026-11-27).
+- **Licence:** MIT.
 
-**Not suitable for**
-- Real-world decisions in the scenarios the functions are named after
-- High-dimensional problems (well beyond 8 inputs) or large datasets, where exact Gaussian Processes become slow and their uncertainty less reliable
-- Batch settings where many points are evaluated at once
-- Problems with hard constraints beyond simple box bounds
+## Intended use
 
-## 3. How It Works
+- **Primary:** best value found per function (the capstone objective). After all 13 rounds, best of my submitted queries: F1 about 0 (3.1e-11), F2 0.765, F3 -0.0266, F4 0.295, F5 8662.4, F6 -0.212, F7 1.856, F8 9.994. Functions 2, 3 and 6 are noisy (round 8's query gave different values when repeated), so their bests may include luck.
+- **Model checks logged each round** (leave-one-out, on transformed outputs). Round 13 values (fitted on data up to round 12):
 
-Each round, for each function:
+| Function | Points used | LOO MAE | Calibration ratio |
+|----------|-------------|---------|-------------------|
+| 1 | 22 | 0.262 | 0.99 |
+| 2 | 22 | 0.115 | 1.03 |
+| 3 | 27 | 0.035 | 0.95 |
+| 4 | 42 | 0.410 | 0.86 |
+| 5 | 32 | 0.636 | 1.26 |
+| 6 | 32 | 0.210 | 1.04 |
+| 7 | 42 | 0.172 | 0.71 |
+| 8 | 52 | 0.047 | 0.56 |
 
-1. **Data:** starter data plus every real portal result logged in `Data/submissions.json`.
-2. **Optional output transform:** rank, signed log or log(1 + y), chosen to tame awkward output scales (see Datasheet, section 4).
-3. **Surrogate:** a Gaussian Process with an anisotropic Matern kernel (one length scale per input, so the model can learn which inputs matter) plus a white-noise term. It predicts both a value and an uncertainty for any input.
-4. **Candidates:** about 30,000 points, of which two thirds are spread uniformly across the space (exploration) and one third are small perturbations around the three best points so far (exploitation). Near-duplicates of existing points are removed.
-5. **Acquisition:**
-   - *UCB* = predicted value + kappa x uncertainty. A larger kappa means more exploration.
-   - *EI* = expected amount by which a point beats the current best.
-6. **Safety check:** the winning point must lie in [0, 0.999999] and is formatted to six decimals for the portal.
-7. **Logging:** the query, settings, seed and diagnostics are saved to `Results/round_NN_queries.json`.
+A calibration ratio near 1 means the model's stated uncertainty matches its real errors; above 1 means overconfident; below 1 underconfident. The exact definition is in the original pipeline, which this repo does not reproduce, so treat the ratio as indicative.
 
-### Per-function settings (v1.0)
+## Training and evaluation data
 
-| Fn | Dims | Transform | Kernel | Acquisition | Why |
-|---|---|---|---|---|---|
-| 1 | 2 | rank | Matern 2.5 | UCB, kappa = 3.0 | Signal only near a hidden source and no source found yet, so exploration is the priority |
-| 2 | 2 | none | Matern 1.5 | UCB, kappa = 2.0 | Described as noisy with local optima; a rougher kernel and a noise term suit this |
-| 3 | 3 | none | Matern 2.5 | EI, xi = 0.01 | All outputs negative and the best is closest to zero; EI targets improving on the current best |
-| 4 | 4 | signed log | Matern 2.5 | UCB, kappa = 2.0 | Many local optima and a wide output range |
-| 5 | 4 | log(1 + y) | Matern 2.5, no noise | UCB, kappa = 1.5 | Described as unimodal, so climbing towards the single peak is the priority |
-| 6 | 5 | none | Matern 2.5 | EI, xi = 0.01 | Sum of penalties, all negative; push towards zero |
-| 7 | 6 | none | Matern 2.5 | UCB, kappa = 2.5 | Higher dimension, so stronger early exploration |
-| 8 | 8 | none | Matern 2.5 | UCB, kappa = 1.5, smaller local step | Fairly flat outputs; a strong local maximum is the realistic goal |
+- Refit from scratch each round on the supplied initial data plus all submitted results (see `DATASHEET.md`). There is no separate test set, because each new query is itself the test.
 
-### Change Log
+## Quantitative analysis
 
-| Round | Change | Reason |
-|---|---|---|
-| 1 | Initial settings above (transform, kernel smoothness `nu`, noise flag, acquisition type/kappa/xi, local search scale) | Based on the official per-function descriptions and the starter data's output ranges and shapes |
-| 2–12 | No settings changed | Every function's best-so-far kept improving under its round-1 settings (see results table below), and LOO calibration ratios stayed in a reasonable band (roughly 0.56–1.26) rather than drifting toward clear over- or under-confidence, so there was no diagnostic signal to justify retuning. The only thing that changes round to round is the data: `run_round.py` refits each function's GP on starter data plus every real result logged so far, which is what shifts each query toward better regions without any manual setting change. |
+- See `notebooks/bbo_analysis.ipynb` for results by round and diagnostics. Highlights over the 13 rounds:
+  - Function 5's LOO error fell from 1.54 (round 2 log) to 0.64 (round 13 log), and its best rose from 150 to 8,662, but it stalled after round 10 at the corner of the input space.
+  - Function 8's LOO error fell steadily from 0.101 to 0.047 and its result improved in every round from 9 to 13.
+  - Function 4's LOO error doubled from 0.14 to 0.30 once its round 2 result was added and stayed between 0.28 and 0.41. Even so, its best went from -3.6 to 0.295, reached in the last round.
+  - The calibration ratio for Function 3 rose to 1.58 (overconfident) in round 7, and Functions 7 and 8 stayed below 0.75 (underconfident) throughout, so their uncertainty bands were wider than needed.
+- **Repeat-query noise check:** re-submitting round 8's query gave different values for Functions 2, 3 and 6 (differences about 0.06, 0.005 and 0.065) and identical values for 1, 4, 5, 7 and 8 (`data/repeat_queries.csv`).
 
-All per-function settings in the table above are therefore unchanged from Round 1 through the round reflected in this card (Round 12 submitted, Round 13 queries generated). If a function's calibration ratio moves outside roughly [0.7, 1.3] or its best-so-far stalls for several consecutive rounds, that is the trigger to revisit its transform, kernel or acquisition kappa/xi — not a scheduled retuning.
+## Ethical considerations
 
-## 4. Performance
+- No personal data and no direct impact on people.
+- Sampling is adaptive and not representative, so statistics from the data should not be generalised.
+- Risk of over-trusting the model: predictions look confident near sampled points but can be badly wrong elsewhere. Functions 1, 3 and 5 were overconfident at times (calibration above 1.2; Function 5 was still 1.26 in round 13).
 
-**Metrics**
-- **Best output so far** per function, tracked each round (`Results/progress.png`)
-- **Leave-one-out (LOO) mean absolute error**: refit without each point and predict it
-- **LOO calibration ratio**: LOO error divided by the GP's average predicted uncertainty. Near 1 means the uncertainty is roughly honest; well above 1 means overconfident.
+## Caveats and recommendations
 
-**Baseline on the starter data (before any of my queries)**
-
-| Fn | Best starter output | LOO MAE* | Calibration ratio |
-|---|---|---|---|
-| 1 | about 0 | 0.335 | 1.23 |
-| 2 | 0.611 | 0.140 | 1.20 |
-| 3 | -0.0348 | 0.058 | 1.26 |
-| 4 | -4.03 | 0.155 | 0.77 |
-| 5 | 1,088.9 | 1.117 | 1.26 |
-| 6 | -0.714 | 0.314 | 1.33 |
-| 7 | 1.365 | 0.227 | 1.09 |
-| 8 | 9.598 | 0.078 | 0.62 |
-
-*Errors are on the transformed scale for Functions 1, 4 and 5, so they are not comparable across functions.
-
-Reading these: most functions sit between 1.1 and 1.3, meaning the GP is slightly overconfident, which argues for keeping some exploration. Functions 4 and 8 are below 1, meaning the GP is somewhat underconfident there.
-
-**Results by round** (through Round 12 submitted; 12 real points logged per function beyond the starter data):
-
-| Fn | Starter best | Best after round 1 | Best so far | Round achieved |
-|---|---|---|---|---|
-| 1 | 7.711e-16 | 7.711e-16 (no improvement) | 4.135e-12 | 9 |
-| 2 | 0.6112 | 0.6112 (no improvement) | 0.7648 | 10 |
-| 3 | -0.0348 | -0.0348 (no improvement) | -0.0266 | 8 |
-| 4 | -4.0255 | -3.6174 | 0.2729 | 12 |
-| 5 | 1,088.86 | 1,088.86 (no improvement) | 8,662.41 | 10 |
-| 6 | -0.7143 | -0.6031 | -0.2120 | 11 |
-| 7 | 1.3650 | 1.3650 (no improvement) | 1.8556 | 9 |
-| 8 | 9.5985 | 9.8080 | 9.9846 | 12 |
-
-Functions 1, 2, 3, 5 and 7 didn't beat their starter best until later rounds — mostly because the GP spends its first few queries reducing uncertainty broadly before the acquisition function commits to a promising region. Functions 4, 6 and 8 improved immediately in Round 1, likely because their starter data was sparser relative to their dimensionality, leaving more obviously-better regions nearby.
-
-**Current LOO diagnostics** (computed ahead of Round 13, i.e. using all 12 real rounds):
-
-| Fn | n points | LOO MAE* | Calibration ratio | vs. baseline |
-|---|---|---|---|---|
-| 1 | 22 | 0.262 | 0.985 | was 1.23 → now close to 1, no longer overconfident |
-| 2 | 22 | 0.115 | 1.029 | was 1.20 → now close to 1 |
-| 3 | 27 | 0.035 | 0.948 | was 1.26 → now close to 1 |
-| 4 | 42 | 0.410 | 0.865 | was 0.77 → still mildly underconfident |
-| 5 | 32 | 0.636 | 1.259 | was 1.26 → essentially unchanged, still somewhat overconfident |
-| 6 | 32 | 0.210 | 1.044 | was 1.33 → now close to 1 |
-| 7 | 42 | 0.172 | 0.713 | was 1.09 → drifting underconfident as more points cluster near the optimum |
-| 8 | 52 | 0.048 | 0.557 | was 0.62 → increasingly underconfident |
-
-*Errors are on the transformed scale for Functions 1, 4 and 5, so they are not comparable across functions.
-
-Functions 7 and 8 are the ones to watch: their calibration ratios have drifted further below 1 as data accumulated near their current best points, meaning the GP's uncertainty estimates there are too wide relative to actual error — a sign the kernel noise term could be reduced slightly in a future settings pass, without being an urgent problem since it doesn't reduce exploitation accuracy.
-
-## 5. Assumptions and Limitations
-
-**Assumptions**
-- Each function is reasonably smooth: nearby inputs give similar outputs.
-- One kernel shape fits the whole space for each function (stationarity).
-- The valid input range is [0, 0.999999], as required by the portal format.
-- Outputs are deterministic apart from a small noise term (stronger noise expected for Function 2).
-- Leave-one-out results on 10 to 40 points are good enough to compare settings, though not precise.
-
-**Limitations and failure modes**
-- **Narrow peaks:** a sharp spike between sampled points (likely for Function 1) can look flat to the GP.
-- **Sampling bias:** later queries cluster near the best points so far, leaving edges and corners of 6D and 8D spaces almost unexplored. A better optimum there would go unseen.
-- **Deceptive landscapes:** if the best observed region is only a local peak, exploitation will refine the wrong area.
-- **Small-sample diagnostics:** LOO numbers shift noticeably when a single point is added.
-- **No true held-out test:** each round gives one real result per function, so settings can't be properly A/B tested.
-- **Random candidate search:** in 8D, 30,000 random candidates are still sparse, so the true maximiser of the acquisition function may be missed.
-
-## 6. Ethical Considerations
-
-The functions are synthetic, so there is no direct risk of physical, financial or personal harm. Transparency still matters:
-
-- **Reproducibility:** every round saves its query, settings, random seed and diagnostics, and all data is in the repository, so anyone can rerun `run_round.py` and get the same queries.
-- **Honest scope:** the scenario names (drug discovery, chemical yield) are illustrative. Anyone reusing this approach on a real problem in those areas would need real measurement noise, safety constraints and domain review, none of which this approach handles.
-- **Accurate reporting:** only real portal outputs are logged as results. Predicted values are kept separate in the diagnostics.
-
-## 7. Is This Card Detailed Enough?
-
-The current structure covers what someone needs to understand, rerun and critique the approach: how it works, settings per function with reasons, metrics, and failure modes. With the Change Log and results table now filled in through Round 12, the main remaining addition is a final pass after the last round of the capstone, updating the results table and calibration comparison one more time and adding any closing observations to the Assumptions and Limitations section. Mathematical derivations of the kernels and acquisition functions are deliberately left to the code comments and the notebook, to keep this card readable for non-specialists.
+- **Few observations:** ARD lengthscales at their upper bound (10) mean an input looked irrelevant or the data could not tell; they should not be read as proof.
+- **No guarantee of the global maximum.** Settling on a corner (as Function 5's queries do) may find a boundary optimum or miss a better interior one.
+- **Random candidate search** is crude in 6 to 8 dimensions; multi-start gradient-based optimisation of the acquisition function would be better.
+- **Fixed settings across rounds:** kappa and xi did not change from round 2 to 13, so exploration was not reduced over time. The learned noise term was on for Functions 4, 7 and 8, which looked deterministic in the repeat test, and off for Function 5, which was consistent with it. Function 5's queries stayed at or next to one corner from round 4 on and its best did not improve after round 10, so more exploration may have helped (or the corner may simply be the optimum).
+- **Noise:** Functions 2, 3 and 6 returned different values for the same input. Function 2's round 13 result (0.436) was far below its round 10 result (0.765) at a near-identical input, so its noise may be larger than the single repeat suggests.
+- **Missing log:** the round 6 diagnostics are not available; settings for that round are assumed to match the other logged rounds.
+- **Possible improvements:** re-tuning settings per function as data grows, repeating queries on noisy functions and averaging, setting the noise term from the repeat evidence, a trust region around the best point, filtering out poor regions before the acquisition step, and multi-start gradient-based optimisation of the acquisition function.

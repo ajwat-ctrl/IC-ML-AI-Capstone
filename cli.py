@@ -1,7 +1,7 @@
 """Command-line interface.
 
-  python cli.py suggest --round 5            # propose a query for every function
-  python cli.py suggest --round 5 --function 3
+  python cli.py suggest --round 12            # propose a query for every function
+  python cli.py suggest --round 12 --function 3
   python cli.py log --function 3 --round 4 --query 0.412345-0.55-0.3 --y -0.04 \
                     --rationale "EI xi=0.01"
 

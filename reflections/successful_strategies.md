@@ -4,19 +4,20 @@
 
 The main gain came from choosing queries with a Gaussian process surrogate and an acquisition function. A fitted model turns every past result into a prediction with an uncertainty estimate, so each query is chosen deliberately instead of by guesswork.
 
-The second gain came from treating the eight functions differently. The flat Function 1 used the largest exploration weight (kappa 3.0), while Function 8 used one of the smallest (kappa 1.5). From round 2 onward each function had its own settings: UCB for six functions and Expected Improvement for two, with different output transforms, kernel smoothness and noise handling. Function 5 shows the payoff most clearly: its result rose from 150 in round 1 to 1,581 in round 2, 6,065 in round 3 and 8,329 in round 4 as queries moved towards a high corner of the input space.
+The second gain came from treating the eight functions differently. The flat Function 1 used the largest exploration weight (kappa 3.0), while Function 8 used one of the smallest (kappa 1.5). From round 2 onward each function had its own settings: UCB for six functions and Expected Improvement for two, with different output transforms, kernel smoothness and noise handling. Function 5 shows the payoff most clearly: its result rose from 150 in round 1 to 1,581 in round 2, 6,065 in round 3 and 8,329 in round 4 as queries moved towards a high corner of the input space, and peaked at 8,662 in round 10. Function 4 shows a slower payoff: after -15.7 and -22.1 in rounds 3 and 4, the model steered it to 0.041 in round 5 and 0.295 in round 13. By the end of round 13 every function had a better result than in round 1.
 
 These choices shaped the whole challenge:
 
-- Rounds 2 to 5: keep each function's settings fixed (UCB with kappa 1.5 to 3.0, or EI with xi 0.01), so changes in the queries come from new data.
-- Next: consider lowering the exploration weight in later rounds, because a wasted query costs more near the end than at the start.
+- Rounds 2 to 13: keep each function's settings fixed (UCB with kappa 1.5 to 3.0, or EI with xi 0.01), so changes in the queries come from new data. The logs confirm nothing was retuned.
+- In hindsight: I never lowered the exploration weight, even though a wasted query costs more near the end than at the start. Function 5's best stopped improving after round 10 while its queries kept clustering at one corner.
+- A repeat query: re-submitting round 8's query showed that Functions 2, 3 and 6 are noisy and the other five returned identical values. I should have run this test early, because it tells me which functions need a noise term and where a lucky value could mislead me.
 - Throughout: log every query, result and rationale, which stopped me repeating myself or chasing noise.
 
 ## What makes a strategy successful
 
 Outcomes matter, but they are not enough on their own, for three reasons:
 
-- **Noise and luck.** With one query per function per round, a good result can be chance. A strategy that scored well by luck is not necessarily a good one.
+- **Noise and luck.** With one query per function per round, a good result can be chance. My repeat query proved it: Function 2 returned 0.624 and then 0.563 for the same input, and its best (0.765 in round 10) was followed by 0.436 in round 13 at almost the same point. A strategy that scored well by luck is not necessarily a good one.
 - **Adaptability.** The best strategies changed in response to evidence, for example by cutting exploration when returns diminished or abandoning an approach that stopped working.
 - **Reasoning and efficiency.** A strategy whose logic I can explain, and which gets results from few queries, is one I can reuse. If I can't say why it worked, I can't repeat it.
 
